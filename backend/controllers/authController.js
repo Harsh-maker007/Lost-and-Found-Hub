@@ -65,3 +65,37 @@ exports.login = async (req, res) => {
     res.status(500).json({ message: 'Server error during login' });
   }
 };
+
+exports.googleLogin = async (req, res) => {
+  try {
+    const { email, name } = req.body;
+
+    // Check if user exists
+    let user = await User.findOne({ email });
+
+    // If user doesn't exist, create a new one with a random password
+    if (!user) {
+      const salt = await bcrypt.genSalt(10);
+      const randomPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10);
+      const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+      user = new User({
+        name,
+        email,
+        password: hashedPassword
+      });
+      await user.save();
+    }
+
+    // Issue standard JWT token for the session
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secretkey', { expiresIn: '7d' });
+
+    res.json({
+      token,
+      user: { id: user._id, name: user.name, email: user.email }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error during Google login' });
+  }
+};
