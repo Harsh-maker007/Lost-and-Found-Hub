@@ -3,19 +3,24 @@ const Post = require('../models/Post');
 exports.createPost = async (req, res) => {
   try {
     const { type, title, description, location, category, imageUrl } = req.body;
-    
+
+    if (!type || !title || !description || !location || !category) {
+      return res.status(400).json({ message: 'Please fill in all required fields.' });
+    }
+
     const post = new Post({
       type,
-      title,
-      description,
+      title: title.trim(),
+      description: description.trim(),
       imageUrl,
-      location,
-      category,
-      createdBy: req.userId
+      location: location.trim(),
+      category: category.trim(),
+      createdBy: req.userId,
     });
 
     await post.save();
-    res.status(201).json(post);
+    const populatedPost = await Post.findById(post._id).populate('createdBy', 'name email');
+    res.status(201).json(populatedPost);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error creating post' });
@@ -38,7 +43,7 @@ exports.getPosts = async (req, res) => {
     }
 
     const posts = await Post.find(query)
-      .populate('createdBy', 'name')
+      .populate('createdBy', 'name email')
       .sort({ createdAt: -1 });
 
     res.json(posts);
@@ -58,5 +63,18 @@ exports.getPostById = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching post' });
+  }
+};
+
+exports.getMyPosts = async (req, res) => {
+  try {
+    const posts = await Post.find({ createdBy: req.userId })
+      .populate('createdBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.json(posts);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error fetching your posts' });
   }
 };

@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import CreatePost from './pages/CreatePost'
 import PostDetails from './pages/PostDetails'
+import Messages from './pages/Messages'
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/create-post" element={<CreatePost />} />
             <Route path="/post/:id" element={<PostDetails />} />
+            <Route path="/messages" element={<Messages />} />
           </Routes>
         </main>
       </div>

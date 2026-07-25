@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import PostCard from '../components/PostCard';
-import { Search, Filter } from 'lucide-react';
+import { Search } from 'lucide-react';
+import api from '../lib/api';
+
+const categories = ['All Categories', 'Electronics', 'Wallets/Bags', 'Keys', 'Documents', 'Pets', 'Jewelry', 'Clothing', 'Other'];
 
 const Home = () => {
   const [posts, setPosts] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchQuery, setSearchQuery] = useState(''); // Only update on form submit
 
@@ -14,11 +17,13 @@ const Home = () => {
     const fetchPosts = async () => {
       setLoading(true);
       try {
-        let url = '/api/posts?';
-        if (filterType) url += `type=${filterType}&`;
-        if (searchQuery) url += `search=${searchQuery}`;
-        
-        const res = await axios.get(url);
+        const params = new URLSearchParams();
+        if (filterCategory) params.append('category', filterCategory);
+        if (filterType) params.append('type', filterType);
+        if (searchQuery) params.append('search', searchQuery);
+
+        const queryString = params.toString();
+        const res = await api.get(`/api/posts${queryString ? `?${queryString}` : ''}`);
         setPosts(res.data);
       } catch (error) {
         console.error('Error fetching posts:', error);
@@ -27,7 +32,7 @@ const Home = () => {
       }
     };
     fetchPosts();
-  }, [filterType, searchQuery]);
+  }, [filterType, filterCategory, searchQuery]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -84,6 +89,22 @@ const Home = () => {
               </button>
             </div>
 
+          </div>
+          <div className="mt-4 flex flex-col sm:flex-row gap-3">
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="bg-slate-800 border border-slate-700 rounded-lg py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
+            >
+              {categories.map((category) => (
+                <option key={category} value={category === 'All Categories' ? '' : category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+            <p className="text-sm text-slate-500 flex items-center">
+              Filter by post type, search keywords, and narrow results by category.
+            </p>
           </div>
         </div>
 

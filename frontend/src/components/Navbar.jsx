@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { LogOut, PlusCircle, User as UserIcon } from 'lucide-react';
+import { LogOut, MessageSquare, PlusCircle, User as UserIcon } from 'lucide-react';
 
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
@@ -27,6 +27,10 @@ const Navbar = () => {
                 <Link to="/create-post" className="flex items-center text-teal-400 hover:text-teal-300 transition-colors">
                   <PlusCircle className="h-5 w-5 mr-1" />
                   <span className="hidden sm:inline">Create Post</span>
+                </Link>
+                <Link to="/messages" className="flex items-center text-slate-300 hover:text-white transition-colors">
+                  <MessageSquare className="h-5 w-5 mr-1" />
+                  <span className="hidden sm:inline">Messages</span>
                 </Link>
                 <div className="flex items-center text-gray-300">
                   <UserIcon className="h-5 w-5 mr-1" />

@@ -1,8 +1,8 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { Upload, MapPin, Tag } from 'lucide-react';
+import api from '../lib/api';
 
 const CreatePost = () => {
   const [formData, setFormData] = useState({
@@ -12,7 +12,6 @@ const CreatePost = () => {
     location: '',
     category: 'Electronics'
   });
-  const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const { user } = useContext(AuthContext);
@@ -27,7 +26,6 @@ const CreatePost = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result);
@@ -46,7 +44,7 @@ const CreatePost = () => {
         imageUrl: preview || ''
       };
 
-      const res = await axios.post('/api/posts', payload);
+      const res = await api.post('/api/posts', payload);
       
       navigate(`/post/${res.data._id}`);
     } catch (error) {
@@ -161,7 +159,7 @@ const CreatePost = () => {
                       <img src={preview} alt="Preview" className="mx-auto h-48 object-cover rounded-lg" />
                       <button 
                         type="button"
-                        onClick={() => { setImage(null); setPreview(null); }}
+                        onClick={() => { setPreview(null); }}
                         className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
                       >
                         ✕

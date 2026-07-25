@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import { MapPin, Tag, Clock, User as UserIcon, Send } from 'lucide-react';
+import { MapPin, Tag, Clock, Send } from 'lucide-react';
+import api from '../lib/api';
 
 const PostDetails = () => {
   const { id } = useParams();
   const [post, setPost] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
@@ -16,7 +17,7 @@ const PostDetails = () => {
   useEffect(() => {
     const fetchPost = async () => {
       try {
-        const res = await axios.get(`/api/posts/${id}`);
+        const res = await api.get(`/api/posts/${id}`);
         setPost(res.data);
       } catch (error) {
         console.error('Error fetching post:', error);
@@ -26,6 +27,24 @@ const PostDetails = () => {
     };
     fetchPost();
   }, [id]);
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!user) {
+        setMessages([]);
+        return;
+      }
+
+      try {
+        const res = await api.get(`/api/messages/post/${id}`);
+        setMessages(res.data);
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+      }
+    };
+
+    fetchMessages();
+  }, [id, user]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -37,11 +56,12 @@ const PostDetails = () => {
     
     setSendingMsg(true);
     try {
-      await axios.post('/api/messages', {
+      const res = await api.post('/api/messages', {
         receiverId: post.createdBy._id,
         postId: post._id,
         messageText: message
       });
+      setMessages((prev) => [...prev, res.data]);
       alert('Message sent successfully!');
       setMessage('');
     } catch (error) {
@@ -71,6 +91,7 @@ const PostDetails = () => {
   const isLost = post.type === 'lost';
   const typeColor = isLost ? 'bg-red-500' : 'bg-green-500';
   const isOwner = user && user.id === post.createdBy._id;
+  const hasConversation = messages.length > 0;
 
   return (
     <div className="min-h-screen bg-slate-950 py-10 px-4 text-slate-200">
@@ -154,10 +175,50 @@ const PostDetails = () => {
                 </form>
               ) : (
                 <div className="mt-4 bg-teal-500/10 text-teal-400 border border-teal-500/30 p-3 rounded-lg text-sm text-center font-medium">
-                  This is your post. You can check your messages to see if anyone has contacted you.
+                  This is your post. Open the messages page to manage conversations about this item.
                 </div>
               )}
             </div>
+
+            {user && (
+              <div className="mt-6 bg-slate-800 rounded-xl p-6 border border-slate-700">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Conversation</h3>
+                  {hasConversation && (
+                    <button
+                      type="button"
+                      onClick={() => navigate('/messages')}
+                      className="text-sm text-teal-400 hover:text-teal-300"
+                    >
+                      View all messages
+                    </button>
+                  )}
+                </div>
+                {hasConversation ? (
+                  <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
+                    {messages.map((item) => {
+                      const mine = item.senderId._id === user.id;
+
+                      return (
+                        <div
+                          key={item._id}
+                          className={`rounded-xl px-4 py-3 text-sm ${mine ? 'bg-teal-500/15 border border-teal-500/30 ml-8' : 'bg-slate-900 border border-slate-700 mr-8'}`}
+                        >
+                          <p className="text-xs text-slate-400 mb-1">
+                            {mine ? 'You' : item.senderId.name} • {new Date(item.createdAt).toLocaleString()}
+                          </p>
+                          <p className="text-slate-200 whitespace-pre-wrap">{item.messageText}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">
+                    No conversation yet for this post. Once someone sends a message, it will appear here for the participants.
+                  </p>
+                )}
+              </div>
+            )}
 
           </div>
         </div>
