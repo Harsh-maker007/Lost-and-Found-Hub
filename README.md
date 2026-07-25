@@ -42,4 +42,11 @@ The Vite development server proxies `/api/*` requests to `http://localhost:5000`
    - `VITE_API_BASE_URL` (leave empty to use same-origin API routes)
 4. Deploy.
 
-Vercel builds the frontend from `frontend/`, serves the output from `frontend/dist`, and routes `/api/*` requests to the serverless function in `api/index.js`.
+Vercel builds the frontend from `frontend/`, serves the output from `frontend/dist`, and routes `/api/*` requests to the serverless functions in `api/`.
+
+## If Vercel still fails
+
+- Make sure the Vercel project root is the repository root, not `frontend/` or `backend/`.
+- Add the environment variables before redeploying, especially `MONGO_URI` and `JWT_SECRET`.
+- Set `CLIENT_URL` to your deployed frontend domain, for example `https://your-project.vercel.app`.
+- If an old deployment is cached, trigger a fresh redeploy after pulling the latest GitHub commit.
