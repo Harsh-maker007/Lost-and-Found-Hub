@@ -15,6 +15,7 @@ const CreatePost = () => {
   });
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -38,6 +39,7 @@ const CreatePost = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
 
     try {
       const payload = {
@@ -50,11 +52,11 @@ const CreatePost = () => {
         }
       };
 
-      const docRef = await addDoc(collection(db, 'posts'), payload);
+      await addDoc(collection(db, 'posts'), payload);
       navigate(`/`);
     } catch (error) {
       console.error('Error creating post:', error);
-      alert('Failed to create post. Please try again.');
+      setError('Failed to create post: ' + (error.message || 'Please ensure Firestore is enabled in your Firebase Console.'));
     } finally {
       setLoading(false);
     }
@@ -79,6 +81,12 @@ const CreatePost = () => {
         <div className="p-8">
           <h2 className="text-3xl font-bold text-white mb-6">Report an Item</h2>
           
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg mb-6 text-sm">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             
             {/* Type Selection */}

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
-import { signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithRedirect, getRedirectResult, signInWithEmailAndPassword } from 'firebase/auth';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -10,6 +10,21 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Handle redirect result on page load (for Google sign-in)
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          navigate('/');
+        }
+      })
+      .catch((err) => {
+        if (err.code !== 'auth/no-current-user') {
+          setError('Google Sign-In failed: ' + err.message);
+        }
+      });
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,8 +42,8 @@ const Login = () => {
 
   const handleGoogleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
-      navigate('/');
+      // Use redirect instead of popup to avoid COOP header issues on Vercel
+      await signInWithRedirect(auth, googleProvider);
     } catch (err) {
       console.error(err);
       setError('Google Sign-In failed: ' + err.message);
