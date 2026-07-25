@@ -4,7 +4,7 @@ import PostCard from '../components/PostCard';
 import { Search, Filter } from 'lucide-react';
 
 const Home = () => {
-  const [posts, setPosts] = null;
+  const [posts, setPosts] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
