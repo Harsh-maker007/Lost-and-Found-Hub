@@ -23,12 +23,31 @@ app.use('/api/posts', postRoutes);
 app.use('/api/messages', messageRoutes);
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/lostandfound', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('MongoDB Connected'))
-.catch(err => console.log(err));
+let isConnected = false;
+
+const connectDB = async () => {
+  if (isConnected) {
+    console.log('Using existing MongoDB connection');
+    return;
+  }
+  
+  try {
+    const db = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/lostandfound', {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    isConnected = db.connections[0].readyState === 1;
+    console.log('MongoDB Connected successfully');
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+  }
+};
+
+// Connect for every incoming request in the serverless environment
+app.use(async (req, res, next) => {
+  await connectDB();
+  next();
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
