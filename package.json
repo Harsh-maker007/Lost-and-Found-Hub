@@ -1,0 +1,36 @@
+{
+ "name": "lost-and-found-hub",
+ "version": "1.0.0",
+ "description": "Lost & Found Hub for housing societies with a React frontend, Express API, MongoDB, JWT auth, search, uploads, and messaging.",
+ "main": "api/dev-server.js",
+ "scripts": {
+ "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+ "dev:server": "nodemon api/dev-server.js",
+ "dev:client": "npm run dev --prefix client",
+ "build": "npm run build --prefix client",
+ "start": "node api/dev-server.js",
+ "seed": "node server/scripts/seed.js"
+ },
+ "keywords": [
+ "mern",
+ "lost-and-found",
+ "housing-society",
+ "vercel"
+ ],
+ "author": "Harsh-maker007",
+ "license": "MIT",
+ "dependencies": {
+ "bcryptjs": "^3.0.2",
+ "cors": "^2.8.5",
+ "dotenv": "^17.2.1",
+ "express": "^5.1.0",
+ "jsonwebtoken": "^9.0.2",
+ "mongoose": "^8.18.0",
+ "multer": "^2.0.2",
+ "serverless-http": "^4.0.0"
+ },
+ "devDependencies": {
+ "concurrently": "^9.2.1",
+ "nodemon": "^3.1.10"
+ }
+}
