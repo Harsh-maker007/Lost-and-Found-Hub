@@ -10,7 +10,7 @@ Lost & Found Hub is a MERN application for housing societies to report lost or f
 - Search by keyword and filter by post type or category
 - Post detail pages with conversation history
 - Inbox page for all user conversations
-- Vercel-ready API routing with a Vite frontend
+- Vercel multi-service deployment with a Vite frontend and Node backend
 
 ## Tech stack
 
@@ -42,7 +42,12 @@ The Vite development server proxies `/api/*` requests to `http://localhost:5000`
    - `VITE_API_BASE_URL` (leave empty to use same-origin API routes)
 4. Deploy.
 
-Vercel builds the frontend from `frontend/`, serves the output from `frontend/dist`, and routes `/api/*` requests to the serverless functions in `api/`.
+Vercel deploys the project as two services:
+
+- `frontend`: the Vite React app in `frontend/`
+- `backend`: the Node/Express API in `backend/`
+
+The root `vercel.json` rewrites `/api/*` requests to the backend service and sends all other routes to the frontend service.
 
 ## If Vercel still fails
 
