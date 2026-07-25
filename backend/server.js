@@ -27,25 +27,35 @@ let isConnected = false;
 
 const connectDB = async () => {
   if (isConnected) {
-    console.log('Using existing MongoDB connection');
-    return;
+    return true;
   }
   
   try {
-    const db = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/lostandfound', {
+    if (!process.env.MONGO_URI) {
+      throw new Error("MONGO_URI environment variable is not defined");
+    }
+
+    const db = await mongoose.connect(process.env.MONGO_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000 // Don't hang forever
     });
     isConnected = db.connections[0].readyState === 1;
-    console.log('MongoDB Connected successfully');
+    return true;
   } catch (err) {
     console.error('MongoDB connection error:', err);
+    return false;
   }
 };
 
 // Connect for every incoming request in the serverless environment
 app.use(async (req, res, next) => {
-  await connectDB();
+  const connected = await connectDB();
+  if (!connected) {
+    return res.status(500).json({ 
+      message: 'Database connection failed. Please check if MONGO_URI is set correctly in Vercel Environment Variables and Network Access is configured in MongoDB Atlas.' 
+    });
+  }
   next();
 });
 
