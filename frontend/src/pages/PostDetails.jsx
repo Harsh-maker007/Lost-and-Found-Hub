@@ -2,7 +2,8 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { MapPin, Tag, Clock, Send } from 'lucide-react';
-import api from '../lib/api';
+import { db } from '../firebase';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, orderBy } from 'firebase/firestore';
 
 const PostDetails = () => {
   const { id } = useParams();
@@ -17,8 +18,13 @@ const PostDetails = () => {
   useEffect(() => {
     const fetchPost = async () => {
       try {
-        const res = await api.get(`/api/posts/${id}`);
-        setPost(res.data);
+        const docRef = doc(db, 'posts', id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setPost({ id: docSnap.id, ...docSnap.data() });
+        } else {
+          setPost(null);
+        }
       } catch (error) {
         console.error('Error fetching post:', error);
       } finally {
@@ -30,21 +36,25 @@ const PostDetails = () => {
 
   useEffect(() => {
     const fetchMessages = async () => {
-      if (!user) {
+      if (!user || !post) {
         setMessages([]);
         return;
       }
-
       try {
-        const res = await api.get(`/api/messages/post/${id}`);
-        setMessages(res.data);
+        const q = query(collection(db, 'messages'), where('postId', '==', id));
+        const snapshot = await getDocs(q);
+        const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // sort by createdAt
+        msgs.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        setMessages(msgs);
       } catch (error) {
         console.error('Error fetching messages:', error);
       }
     };
-
-    fetchMessages();
-  }, [id, user]);
+    if (post) {
+      fetchMessages();
+    }
+  }, [id, user, post]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -56,17 +66,29 @@ const PostDetails = () => {
     
     setSendingMsg(true);
     try {
-      const res = await api.post('/api/messages', {
-        receiverId: post.createdBy._id,
-        postId: post._id,
-        messageText: message
-      });
-      setMessages((prev) => [...prev, res.data]);
+      const newMsg = {
+        postId: post.id,
+        postDetails: {
+          title: post.title,
+          type: post.type,
+          category: post.category,
+          location: post.location
+        },
+        senderId: {
+          id: user.id,
+          name: user.name
+        },
+        receiverId: post.createdBy,
+        messageText: message,
+        createdAt: new Date().toISOString()
+      };
+      const docRef = await addDoc(collection(db, 'messages'), newMsg);
+      setMessages((prev) => [...prev, { id: docRef.id, ...newMsg }]);
       alert('Message sent successfully!');
       setMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
-      alert(error.response?.data?.message || 'Failed to send message.');
+      alert('Failed to send message.');
     } finally {
       setSendingMsg(false);
     }
@@ -90,7 +112,7 @@ const PostDetails = () => {
 
   const isLost = post.type === 'lost';
   const typeColor = isLost ? 'bg-red-500' : 'bg-green-500';
-  const isOwner = user && user.id === post.createdBy._id;
+  const isOwner = user && user.id === post.createdBy.id;
   const hasConversation = messages.length > 0;
 
   return (
@@ -197,11 +219,11 @@ const PostDetails = () => {
                 {hasConversation ? (
                   <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
                     {messages.map((item) => {
-                      const mine = item.senderId._id === user.id;
+                      const mine = item.senderId.id === user.id;
 
                       return (
                         <div
-                          key={item._id}
+                          key={item.id}
                           className={`rounded-xl px-4 py-3 text-sm ${mine ? 'bg-teal-500/15 border border-teal-500/30 ml-8' : 'bg-slate-900 border border-slate-700 mr-8'}`}
                         >
                           <p className="text-xs text-slate-400 mb-1">

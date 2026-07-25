@@ -1,10 +1,9 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { AuthContext } from '../context/AuthContext';
 import { UserPlus } from 'lucide-react';
-import { auth, googleProvider } from '../firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider, db } from '../firebase';
+import { signInWithPopup, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -12,18 +11,26 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
-      const res = await axios.post('/api/auth/register', { name, email, password });
-      login(res.data.user, res.data.token);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(userCredential.user, { displayName: name });
+      
+      // Save user profile in Firestore
+      await setDoc(doc(db, "users", userCredential.user.uid), {
+        name,
+        email,
+        createdAt: new Date().toISOString()
+      });
+
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to register');
+      setError(err.message || 'Failed to register');
     } finally {
       setLoading(false);
     }
@@ -31,19 +38,12 @@ const Register = () => {
 
   const handleGoogleLogin = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      
-      const res = await axios.post('/api/auth/google', {
-        email: user.email,
-        name: user.displayName || 'Google User'
-      });
-      
-      login(res.data.user, res.data.token);
+      await signInWithPopup(auth, googleProvider);
+      // user is automatically saved to auth, and onAuthStateChanged will pick it up
       navigate('/');
     } catch (err) {
       console.error(err);
-      setError('Google Sign-In failed');
+      setError('Google Sign-In failed: ' + err.message);
     }
   };
 

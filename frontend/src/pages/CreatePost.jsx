@@ -2,7 +2,8 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { Upload, MapPin, Tag } from 'lucide-react';
-import api from '../lib/api';
+import { db } from '../firebase';
+import { collection, addDoc } from 'firebase/firestore';
 
 const CreatePost = () => {
   const [formData, setFormData] = useState({
@@ -41,12 +42,16 @@ const CreatePost = () => {
     try {
       const payload = {
         ...formData,
-        imageUrl: preview || ''
+        imageUrl: preview || '',
+        createdAt: new Date().toISOString(),
+        createdBy: {
+          id: user.id,
+          name: user.name
+        }
       };
 
-      const res = await api.post('/api/posts', payload);
-      
-      navigate(`/post/${res.data._id}`);
+      const docRef = await addDoc(collection(db, 'posts'), payload);
+      navigate(`/`);
     } catch (error) {
       console.error('Error creating post:', error);
       alert('Failed to create post. Please try again.');

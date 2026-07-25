@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import PostCard from '../components/PostCard';
 import { Search } from 'lucide-react';
-import api from '../lib/api';
+import { db } from '../firebase';
+import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 
 const categories = ['All Categories', 'Electronics', 'Wallets/Bags', 'Keys', 'Documents', 'Pets', 'Jewelry', 'Clothing', 'Other'];
 
@@ -11,20 +12,42 @@ const Home = () => {
   const [filterType, setFilterType] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchQuery, setSearchQuery] = useState(''); // Only update on form submit
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchPosts = async () => {
       setLoading(true);
       try {
-        const params = new URLSearchParams();
-        if (filterCategory) params.append('category', filterCategory);
-        if (filterType) params.append('type', filterType);
-        if (searchQuery) params.append('search', searchQuery);
+        let q = collection(db, 'posts');
+        
+        // Firestore doesn't support easy multiple where clauses without composite indexes sometimes,
+        // but simple equalities are fine. We will sort manually since adding orderBy requires an index if we have where clauses.
+        
+        const queryConstraints = [];
+        if (filterCategory) queryConstraints.push(where('category', '==', filterCategory));
+        if (filterType) queryConstraints.push(where('type', '==', filterType));
+        
+        if (queryConstraints.length > 0) {
+          q = query(q, ...queryConstraints);
+        }
 
-        const queryString = params.toString();
-        const res = await api.get(`/api/posts${queryString ? `?${queryString}` : ''}`);
-        setPosts(res.data);
+        const snapshot = await getDocs(q);
+        let fetchedPosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // Sort descending by createdAt
+        fetchedPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        // Client-side search (since Firestore doesn't support native full-text search)
+        if (searchQuery) {
+          const lowerQuery = searchQuery.toLowerCase();
+          fetchedPosts = fetchedPosts.filter(p => 
+            p.title.toLowerCase().includes(lowerQuery) || 
+            p.description.toLowerCase().includes(lowerQuery) ||
+            p.location.toLowerCase().includes(lowerQuery)
+          );
+        }
+
+        setPosts(fetchedPosts);
       } catch (error) {
         console.error('Error fetching posts:', error);
       } finally {
@@ -121,7 +144,7 @@ const Home = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {posts.map(post => (
-              <PostCard key={post._id} post={post} />
+              <PostCard key={post.id} post={post} />
             ))}
           </div>
         )}

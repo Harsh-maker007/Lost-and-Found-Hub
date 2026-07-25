@@ -1,28 +1,25 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { AuthContext } from '../context/AuthContext';
 import { LogIn } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
-      const res = await axios.post('/api/auth/login', { email, password });
-      login(res.data.user, res.data.token);
+      await signInWithEmailAndPassword(auth, email, password);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to login');
+      setError(err.message || 'Failed to login');
     } finally {
       setLoading(false);
     }
@@ -30,19 +27,11 @@ const Login = () => {
 
   const handleGoogleLogin = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      
-      const res = await axios.post('/api/auth/google', {
-        email: user.email,
-        name: user.displayName || 'Google User'
-      });
-      
-      login(res.data.user, res.data.token);
+      await signInWithPopup(auth, googleProvider);
       navigate('/');
     } catch (err) {
       console.error(err);
-      setError('Google Sign-In failed');
+      setError('Google Sign-In failed: ' + err.message);
     }
   };
 

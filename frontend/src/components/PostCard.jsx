@@ -7,7 +7,7 @@ const PostCard = ({ post }) => {
   const typeColor = isLost ? 'bg-red-500' : 'bg-green-500';
 
   return (
-    <Link to={`/post/${post._id}`} className="block h-full">
+    <Link to={`/post/${post.id}`} className="block h-full">
       <div className="bg-slate-800 rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full flex flex-col border border-slate-700">
         <div className="relative h-48 bg-slate-700">
           {post.imageUrl ? (

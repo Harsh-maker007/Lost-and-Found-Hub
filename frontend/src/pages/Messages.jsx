@@ -1,20 +1,22 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import api from '../lib/api';
+import { db } from '../firebase';
+import { collection, query, or, where, getDocs } from 'firebase/firestore';
 
 const groupConversations = (messages, currentUserId) => {
   const grouped = new Map();
 
   messages.forEach((message) => {
-    const otherUser = message.senderId._id === currentUserId ? message.receiverId : message.senderId;
-    const key = `${message.postId?._id || 'unknown'}-${otherUser._id}`;
+    const otherUser = message.senderId.id === currentUserId ? message.receiverId : message.senderId;
+    const key = `${message.postId || 'unknown'}-${otherUser.id}`;
 
     if (!grouped.has(key)) {
       grouped.set(key, {
         key,
         otherUser,
-        post: message.postId,
+        post: message.postDetails || { title: 'Unknown Post', type: 'unknown' },
+        postId: message.postId,
         latestMessage: message,
         count: 1,
       });
@@ -47,8 +49,16 @@ const Messages = () => {
       }
 
       try {
-        const res = await api.get('/api/messages');
-        setMessages(res.data);
+        const q = query(
+          collection(db, 'messages'),
+          or(
+            where('senderId.id', '==', user.id),
+            where('receiverId.id', '==', user.id)
+          )
+        );
+        const snapshot = await getDocs(q);
+        const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setMessages(msgs);
       } catch (error) {
         console.error('Error fetching inbox:', error);
       } finally {
@@ -91,20 +101,20 @@ const Messages = () => {
             {conversations.map((conversation) => (
               <Link
                 key={conversation.key}
-                to={`/post/${conversation.post?._id}`}
+                to={`/post/${conversation.postId}`}
                 className="block bg-slate-900 rounded-2xl border border-slate-800 p-5 hover:border-teal-500/40 transition-colors"
               >
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${conversation.post?.type === 'lost' ? 'bg-red-500/15 text-red-400' : 'bg-green-500/15 text-green-400'}`}>
-                        {conversation.post?.type || 'post'}
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${conversation.post.type === 'lost' ? 'bg-red-500/15 text-red-400' : 'bg-green-500/15 text-green-400'}`}>
+                        {conversation.post.type}
                       </span>
-                      <span className="text-sm text-slate-500">{conversation.post?.category}</span>
+                      <span className="text-sm text-slate-500">{conversation.post.category}</span>
                     </div>
-                    <h2 className="text-xl font-semibold text-white">{conversation.post?.title || 'Deleted post'}</h2>
+                    <h2 className="text-xl font-semibold text-white">{conversation.post.title}</h2>
                     <p className="text-slate-400 mt-1">
-                      With {conversation.otherUser.name} • {conversation.post?.location}
+                      With {conversation.otherUser.name} • {conversation.post.location}
                     </p>
                   </div>
                   <p className="text-sm text-slate-500 shrink-0">
@@ -112,7 +122,7 @@ const Messages = () => {
                   </p>
                 </div>
                 <p className="text-slate-300 mt-4 line-clamp-2">
-                  {conversation.latestMessage.senderId._id === user.id ? 'You: ' : `${conversation.otherUser.name}: `}
+                  {conversation.latestMessage.senderId.id === user.id ? 'You: ' : `${conversation.otherUser.name}: `}
                   {conversation.latestMessage.messageText}
                 </p>
                 <p className="text-sm text-teal-400 mt-3">Open post conversation</p>
