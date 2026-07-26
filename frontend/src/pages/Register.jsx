@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
-import { signInWithRedirect, getRedirectResult, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { signInWithPopup, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -29,28 +29,13 @@ const Register = () => {
 
   const handleGoogleLogin = async () => {
     try {
-      // Use redirect instead of popup to avoid COOP header issues on Vercel
-      await signInWithRedirect(auth, googleProvider);
+      await signInWithPopup(auth, googleProvider);
+      navigate('/');
     } catch (err) {
       console.error(err);
       setError('Google Sign-In failed: ' + err.message);
     }
   };
-
-  // Handle redirect result on page load
-  useEffect(() => {
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) {
-          navigate('/');
-        }
-      })
-      .catch((err) => {
-        if (err.code !== 'auth/no-current-user') {
-          setError('Google Sign-In failed: ' + err.message);
-        }
-      });
-  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
