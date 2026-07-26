@@ -2,8 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { MapPin, Tag, Clock, Send } from 'lucide-react';
-import { db } from '../firebase';
-import { doc, getDoc, collection, query, where, getDocs, addDoc, orderBy } from 'firebase/firestore';
+import { supabase } from '../supabase';
 
 const PostDetails = () => {
   const { id } = useParams();
@@ -18,15 +17,16 @@ const PostDetails = () => {
   useEffect(() => {
     const fetchPost = async () => {
       try {
-        const docRef = doc(db, 'posts', id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setPost({ id: docSnap.id, ...docSnap.data() });
-        } else {
-          setPost(null);
-        }
+        const { data, error } = await supabase
+          .from('posts')
+          .select('*')
+          .eq('id', id)
+          .single();
+        if (error) throw error;
+        setPost(data);
       } catch (error) {
         console.error('Error fetching post:', error);
+        setPost(null);
       } finally {
         setLoading(false);
       }
@@ -36,59 +36,51 @@ const PostDetails = () => {
 
   useEffect(() => {
     const fetchMessages = async () => {
-      if (!user || !post) {
-        setMessages([]);
-        return;
-      }
+      if (!user || !post) return;
       try {
-        const q = query(collection(db, 'messages'), where('postId', '==', id));
-        const snapshot = await getDocs(q);
-        const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // sort by createdAt
-        msgs.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-        setMessages(msgs);
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('post_id', id)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        setMessages(data || []);
       } catch (error) {
         console.error('Error fetching messages:', error);
       }
     };
-    if (post) {
-      fetchMessages();
-    }
+    if (post) fetchMessages();
   }, [id, user, post]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!user) {
-      alert("Please login to send a message.");
+      alert('Please login to send a message.');
       navigate('/login');
       return;
     }
-    
     setSendingMsg(true);
     try {
       const newMsg = {
-        postId: post.id,
-        postDetails: {
-          title: post.title,
-          type: post.type,
-          category: post.category,
-          location: post.location
-        },
-        senderId: {
-          id: user.id,
-          name: user.name
-        },
-        receiverId: post.createdBy,
-        messageText: message,
-        createdAt: new Date().toISOString()
+        post_id: post.id,
+        post_title: post.title,
+        post_type: post.type,
+        post_category: post.category,
+        post_location: post.location,
+        sender_id: user.id,
+        sender_name: user.name,
+        receiver_id: post.created_by_id,
+        receiver_name: post.created_by_name,
+        message_text: message,
       };
-      const docRef = await addDoc(collection(db, 'messages'), newMsg);
-      setMessages((prev) => [...prev, { id: docRef.id, ...newMsg }]);
+      const { data, error } = await supabase.from('messages').insert(newMsg).select().single();
+      if (error) throw error;
+      setMessages((prev) => [...prev, data]);
       alert('Message sent successfully!');
       setMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message.');
+      alert('Failed to send message: ' + error.message);
     } finally {
       setSendingMsg(false);
     }
@@ -112,7 +104,7 @@ const PostDetails = () => {
 
   const isLost = post.type === 'lost';
   const typeColor = isLost ? 'bg-red-500' : 'bg-green-500';
-  const isOwner = user && user.id === post.createdBy.id;
+  const isOwner = user && user.id === post.created_by_id;
   const hasConversation = messages.length > 0;
 
   return (
@@ -122,9 +114,9 @@ const PostDetails = () => {
           
           {/* Image Section */}
           <div className="md:w-1/2 relative bg-slate-800">
-            {post.imageUrl ? (
+            {post.image_url ? (
               <img 
-                src={post.imageUrl} 
+                src={post.image_url} 
                 alt={post.title} 
                 className="w-full h-full object-cover min-h-[300px] md:min-h-[500px]"
                 onError={(e) => { e.target.src = 'https://via.placeholder.com/600x600?text=No+Image'; }}
@@ -154,7 +146,7 @@ const PostDetails = () => {
               </div>
               <div className="flex items-center bg-slate-800 px-3 py-1.5 rounded-lg">
                 <Clock className="h-4 w-4 mr-2 text-teal-400" />
-                {new Date(post.createdAt).toLocaleDateString()}
+                {new Date(post.created_at).toLocaleDateString()}
               </div>
             </div>
 
@@ -166,17 +158,17 @@ const PostDetails = () => {
             <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 mt-auto">
               <div className="flex items-center mb-4">
                 <div className="h-10 w-10 rounded-full bg-gradient-to-r from-teal-500 to-blue-500 flex items-center justify-center text-white font-bold text-lg mr-3 shadow-md">
-                  {post.createdBy.name.charAt(0).toUpperCase()}
+                  {post.created_by_name.charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <p className="text-sm text-slate-400">Posted by</p>
-                  <p className="font-bold text-white">{post.createdBy.name}</p>
+                  <p className="font-bold text-white">{post.created_by_name}</p>
                 </div>
               </div>
 
               {!isOwner ? (
                 <form onSubmit={handleSendMessage} className="mt-4">
-                  <h4 className="text-sm font-semibold text-slate-300 mb-2">Send a message to {post.createdBy.name.split(' ')[0]}</h4>
+                  <h4 className="text-sm font-semibold text-slate-300 mb-2">Send a message to {post.created_by_name.split(' ')[0]}</h4>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -202,43 +194,34 @@ const PostDetails = () => {
               )}
             </div>
 
-            {user && (
+            {user && hasConversation && (
               <div className="mt-6 bg-slate-800 rounded-xl p-6 border border-slate-700">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white">Conversation</h3>
-                  {hasConversation && (
-                    <button
-                      type="button"
-                      onClick={() => navigate('/messages')}
-                      className="text-sm text-teal-400 hover:text-teal-300"
-                    >
-                      View all messages
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/messages')}
+                    className="text-sm text-teal-400 hover:text-teal-300"
+                  >
+                    View all messages
+                  </button>
                 </div>
-                {hasConversation ? (
-                  <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
-                    {messages.map((item) => {
-                      const mine = item.senderId.id === user.id;
-
-                      return (
-                        <div
-                          key={item.id}
-                          className={`rounded-xl px-4 py-3 text-sm ${mine ? 'bg-teal-500/15 border border-teal-500/30 ml-8' : 'bg-slate-900 border border-slate-700 mr-8'}`}
-                        >
-                          <p className="text-xs text-slate-400 mb-1">
-                            {mine ? 'You' : item.senderId.name} • {new Date(item.createdAt).toLocaleString()}
-                          </p>
-                          <p className="text-slate-200 whitespace-pre-wrap">{item.messageText}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-400">
-                    No conversation yet for this post. Once someone sends a message, it will appear here for the participants.
-                  </p>
-                )}
+                <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
+                  {messages.map((item) => {
+                    const mine = item.sender_id === user.id;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`rounded-xl px-4 py-3 text-sm ${mine ? 'bg-teal-500/15 border border-teal-500/30 ml-8' : 'bg-slate-900 border border-slate-700 mr-8'}`}
+                      >
+                        <p className="text-xs text-slate-400 mb-1">
+                          {mine ? 'You' : item.sender_name} • {new Date(item.created_at).toLocaleString()}
+                        </p>
+                        <p className="text-slate-200 whitespace-pre-wrap">{item.message_text}</p>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

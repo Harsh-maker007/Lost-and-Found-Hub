@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PostCard from '../components/PostCard';
 import { Search } from 'lucide-react';
-import { db } from '../firebase';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { supabase } from '../supabase';
 
 const categories = ['All Categories', 'Electronics', 'Wallets/Bags', 'Keys', 'Documents', 'Pets', 'Jewelry', 'Clothing', 'Other'];
 
@@ -18,38 +17,25 @@ const Home = () => {
     const fetchPosts = async () => {
       setLoading(true);
       try {
-        let q = collection(db, 'posts');
-        
-        // Firestore doesn't support easy multiple where clauses without composite indexes sometimes,
-        // but simple equalities are fine. We will sort manually since adding orderBy requires an index if we have where clauses.
-        
-        const queryConstraints = [];
-        if (filterCategory) queryConstraints.push(where('category', '==', filterCategory));
-        if (filterType) queryConstraints.push(where('type', '==', filterType));
-        
-        if (queryConstraints.length > 0) {
-          q = query(q, ...queryConstraints);
-        }
+        let query = supabase
+          .from('posts')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-        const snapshot = await getDocs(q);
-        let fetchedPosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        // Sort descending by createdAt
-        fetchedPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-        // Client-side search (since Firestore doesn't support native full-text search)
+        if (filterType) query = query.eq('type', filterType);
+        if (filterCategory) query = query.eq('category', filterCategory);
         if (searchQuery) {
-          const lowerQuery = searchQuery.toLowerCase();
-          fetchedPosts = fetchedPosts.filter(p => 
-            p.title.toLowerCase().includes(lowerQuery) || 
-            p.description.toLowerCase().includes(lowerQuery) ||
-            p.location.toLowerCase().includes(lowerQuery)
+          query = query.or(
+            `title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,location.ilike.%${searchQuery}%`
           );
         }
 
-        setPosts(fetchedPosts);
+        const { data, error } = await query;
+        if (error) throw error;
+        setPosts(data);
       } catch (error) {
         console.error('Error fetching posts:', error);
+        setPosts([]);
       } finally {
         setLoading(false);
       }

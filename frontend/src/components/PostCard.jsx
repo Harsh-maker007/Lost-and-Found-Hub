@@ -10,9 +10,9 @@ const PostCard = ({ post }) => {
     <Link to={`/post/${post.id}`} className="block h-full">
       <div className="bg-slate-800 rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full flex flex-col border border-slate-700">
         <div className="relative h-48 bg-slate-700">
-          {post.imageUrl ? (
+          {post.image_url ? (
             <img 
-              src={post.imageUrl} 
+              src={post.image_url} 
               alt={post.title} 
               className="w-full h-full object-cover"
               onError={(e) => { e.target.src = 'https://via.placeholder.com/400x300?text=No+Image'; }}
@@ -41,7 +41,7 @@ const PostCard = ({ post }) => {
             </div>
             <div className="flex items-center">
               <Clock className="h-4 w-4 mr-2 text-teal-400 shrink-0" />
-              <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+              <span>{new Date(post.created_at).toLocaleDateString()}</span>
             </div>
           </div>
         </div>

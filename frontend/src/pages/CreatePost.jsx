@@ -2,8 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { Upload, MapPin, Tag } from 'lucide-react';
-import { db } from '../firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { supabase } from '../supabase';
 
 const CreatePost = () => {
   const [formData, setFormData] = useState({
@@ -42,21 +41,22 @@ const CreatePost = () => {
     setError('');
 
     try {
-      const payload = {
-        ...formData,
-        imageUrl: preview || '',
-        createdAt: new Date().toISOString(),
-        createdBy: {
-          id: user.id,
-          name: user.name
-        }
-      };
+      const { error: insertError } = await supabase.from('posts').insert({
+        title: formData.title,
+        description: formData.description,
+        type: formData.type,
+        category: formData.category,
+        location: formData.location,
+        image_url: preview || '',
+        created_by_id: user.id,
+        created_by_name: user.name
+      });
 
-      await addDoc(collection(db, 'posts'), payload);
-      navigate(`/`);
-    } catch (error) {
-      console.error('Error creating post:', error);
-      setError('Failed to create post: ' + (error.message || 'Please ensure Firestore is enabled in your Firebase Console.'));
+      if (insertError) throw insertError;
+      navigate('/');
+    } catch (err) {
+      console.error('Error creating post:', err);
+      setError('Failed to create post: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -80,13 +80,13 @@ const CreatePost = () => {
       <div className="max-w-3xl mx-auto bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-800">
         <div className="p-8">
           <h2 className="text-3xl font-bold text-white mb-6">Report an Item</h2>
-          
+
           {error && (
             <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg mb-6 text-sm">
               {error}
             </div>
           )}
-
+          
           <form onSubmit={handleSubmit} className="space-y-6">
             
             {/* Type Selection */}
