@@ -3,7 +3,7 @@ services:
     name: lost-and-found-hub
     runtime: static
     buildCommand: npm install && npm run build
-    staticPublishPath: ./build
+    staticPublishPath: ./dist
     rootDir: frontend
     routes:
       - type: rewrite
